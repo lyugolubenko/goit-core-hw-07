@@ -1,4 +1,15 @@
+'''Зауваження до попередньої версії коду:
+Ви гарно поєднали бот та класи. Але є два зауваження.
+1. Не виконана вимога завдання – "клас Birthday, який наслідується від класу Field. 
+Значення зберігається в полі value. Тип - рядок формата DD.MM.YYYY." Рядок, не дата.
+2. В деяких хендлерах у Вас є однакова умова
+if record is None:
+return "Contact not found."
+Якщо record буде None , то при будь-якому зверненні до атрібута цього record станеться помилка
+ AttributeError. Рекомендую цю помилку прописати в декораторі з відповідним повідомленням.
+   І убрати ці if."
 
+'''
 
 from collections import UserDict
 from datetime import datetime, timedelta
@@ -6,6 +17,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. КЛАСИ МОДЕЛЕЙ ДАНИХ (з ДЗ 6 + Birthday)
 # ==========================================
+
 
 class Field:
     def __init__(self, value):
@@ -33,13 +45,10 @@ class Phone(Field):
 class Birthday(Field):
     def __init__(self, value: str):
         try:
-            # Перетворюємо рядок у об'єкт datetime.date та валідуємо формат
-            self.value = datetime.strptime(value, "%d.%m.%Y").date()
+            datetime.strptime(value, "%d.%m.%Y")
         except ValueError:
             raise ValueError("Invalid date format. Use DD.MM.YYYY")
-
-    def __str__(self):
-        return self.value.strftime("%d.%m.%Y")
+        super().__init__(str(value))
 
 
 class Record:
@@ -101,7 +110,7 @@ class AddressBook(UserDict):
             if not record.birthday:
                 continue
 
-            bday = record.birthday.value
+            bday = datetime.strptime(record.birthday.value, "%d.%m.%Y").date()
 
             # Безпечна обробка для 29 лютого у невисокосні роки
             try:
@@ -145,6 +154,7 @@ class AddressBook(UserDict):
 # 2. ДЕКОРАТОР ТА ХЕНДЛЕРИ КОМАНД
 # ==========================================
 
+
 def input_error(func):
     def inner(*args, **kwargs):
         try:
@@ -154,6 +164,8 @@ def input_error(func):
         except IndexError:
             return "Enter all required arguments for the command."
         except KeyError:
+            return "Contact not found."
+        except AttributeError:
             return "Contact not found."
     return inner
 
@@ -172,6 +184,8 @@ def add_contact(args, book: AddressBook):
     record = book.find(name)
     message = "Contact updated."
     if record is None:
+        # Тут перевірка на None лишається навмисно - це не обробка помилки,
+        # а бізнес-логіка: якщо контакту нема, ми його створюємо.
         record = Record(name)
         book.add_record(record)
         message = "Contact added."
@@ -184,8 +198,6 @@ def add_contact(args, book: AddressBook):
 def change_contact(args, book: AddressBook):
     name, old_phone, new_phone, *_ = args
     record = book.find(name)
-    if record is None:
-        return "Contact not found."
     record.edit_phone(old_phone, new_phone)
     return "Phone number updated."
 
@@ -194,8 +206,6 @@ def change_contact(args, book: AddressBook):
 def show_phone(args, book: AddressBook):
     name, *_ = args
     record = book.find(name)
-    if record is None:
-        return "Contact not found."
     if not record.phones:
         return f"No phone numbers found for {name}."
     return f"{name}: {'; '.join(p.value for p in record.phones)}"
@@ -210,8 +220,6 @@ def show_all(book: AddressBook):
 def add_birthday(args, book: AddressBook):
     name, birthday_str, *_ = args
     record = book.find(name)
-    if record is None:
-        return "Contact not found."
     record.add_birthday(birthday_str)
     return f"Birthday added for {name}."
 
@@ -220,8 +228,6 @@ def add_birthday(args, book: AddressBook):
 def show_birthday(args, book: AddressBook):
     name, *_ = args
     record = book.find(name)
-    if record is None:
-        return "Contact not found."
     if record.birthday is None:
         return f"No birthday set for {name}."
     return f"{name}'s birthday: {record.birthday}"
@@ -232,7 +238,7 @@ def birthdays(args, book: AddressBook):
     upcoming = book.get_upcoming_birthdays()
     if not upcoming:
         return "No upcoming birthdays in the next 7 days."
-    
+
     result = ["Upcoming birthdays:"]
     for entry in upcoming:
         result.append(f"{entry['name']}: {entry['birthday']}")
@@ -243,10 +249,11 @@ def birthdays(args, book: AddressBook):
 # 3. ОСНОВНИЙ ЦИКЛ БОТА
 # ==========================================
 
+
 def main():
     book = AddressBook()
     print("Welcome to the assistant bot!")
-    
+
     while True:
         user_input = input("Enter a command: ")
         command, args = parse_input(user_input)
@@ -284,8 +291,4 @@ def main():
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     main()
-=======
-    main()
->>>>>>> 681fe816f9e4d356a1b559ac09d925514b8727c8
